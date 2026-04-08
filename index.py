@@ -9,9 +9,10 @@ LARGURA = 24
 ALTURA = 16
 TAMANHO_PIXEL = 28
 ATRASO_ENTRE_PIXELS_MS = 35
+DURACAO_MOTION_BLUR_MS = 260
 COR_PIXEL_APAGADO = "#111827"
 COR_GRADE = "#374151"
-ARQUIVO_VISUAL = Path("framebuffer.html")
+ARQUIVO_VISUAL = Path("index.html")
 
 CORES_DOS_PIXELS = {
     0: COR_PIXEL_APAGADO,
@@ -116,11 +117,19 @@ def gerar_html_do_framebuffer(framebuffer):
             box-sizing: border-box;
             border: 1px solid {COR_GRADE};
             background: {COR_PIXEL_APAGADO};
-            transition: background 180ms ease, transform 180ms ease;
+            transition: background 180ms ease, filter 180ms ease, transform 180ms ease;
         }}
 
         .pixel.aceso {{
             transform: scale(0.9);
+        }}
+
+        .pixel.motion-blur {{
+            filter: blur(0.8px);
+            box-shadow:
+                0 10px 12px var(--cor-pixel),
+                0 20px 22px var(--cor-pixel),
+                0 30px 32px var(--cor-pixel);
         }}
 
         button {{
@@ -132,6 +141,13 @@ def gerar_html_do_framebuffer(framebuffer):
             cursor: pointer;
             font-weight: bold;
         }}
+
+        .controles {{
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }}
     </style>
 </head>
 <body>
@@ -141,18 +157,45 @@ def gerar_html_do_framebuffer(framebuffer):
         <div class="tela">
             {"".join(pixels)}
         </div>
-        <button onclick="animarFramebuffer()">Reiniciar animacao</button>
+        <div class="controles">
+            <button onclick="animarFramebuffer()">Reiniciar animacao</button>
+            <button id="botao-motion-blur" onclick="alternarMotionBlur()">
+                Motion blur: desligado
+            </button>
+        </div>
     </main>
 
     <script>
         const pixelsAcesos = {json.dumps(pixels_acesos)};
         const atrasoEntrePixels = {ATRASO_ENTRE_PIXELS_MS};
+        const duracaoMotionBlur = {DURACAO_MOTION_BLUR_MS};
+        let motionBlurAtivo = false;
 
         function apagarTodosOsPixels() {{
             document.querySelectorAll(".pixel").forEach((pixel) => {{
                 pixel.classList.remove("aceso");
+                pixel.classList.remove("motion-blur");
                 pixel.style.background = "{COR_PIXEL_APAGADO}";
+                pixel.style.removeProperty("--cor-pixel");
             }});
+        }}
+
+        function atualizarBotaoMotionBlur() {{
+            const botao = document.querySelector("#botao-motion-blur");
+            const estado = motionBlurAtivo ? "ligado" : "desligado";
+            botao.textContent = `Motion blur: ${{estado}}`;
+        }}
+
+        function alternarMotionBlur() {{
+            motionBlurAtivo = !motionBlurAtivo;
+
+            if (!motionBlurAtivo) {{
+                document.querySelectorAll(".pixel").forEach((pixel) => {{
+                    pixel.classList.remove("motion-blur");
+                }});
+            }}
+
+            atualizarBotaoMotionBlur();
         }}
 
         function animarFramebuffer() {{
@@ -161,12 +204,22 @@ def gerar_html_do_framebuffer(framebuffer):
             pixelsAcesos.forEach((pixelAceso, passo) => {{
                 setTimeout(() => {{
                     const pixel = document.querySelector(`[data-indice="${{pixelAceso.indice}}"]`);
+                    pixel.style.setProperty("--cor-pixel", pixelAceso.cor);
                     pixel.style.background = pixelAceso.cor;
                     pixel.classList.add("aceso");
+
+                    if (motionBlurAtivo) {{
+                        pixel.classList.add("motion-blur");
+
+                        setTimeout(() => {{
+                            pixel.classList.remove("motion-blur");
+                        }}, duracaoMotionBlur);
+                    }}
                 }}, passo * atrasoEntrePixels);
             }});
         }}
 
+        atualizarBotaoMotionBlur();
         animarFramebuffer();
     </script>
 </body>
